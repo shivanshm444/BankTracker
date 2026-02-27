@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { db } from '../firebase.config';
+import { db, auth } from '../firebase.config';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export type Transaction = {
   amount: number;
@@ -21,20 +22,28 @@ type TransactionContextType = {
 
 const TransactionContext = createContext<TransactionContextType | null>(null);
 
-const USER_ID = 'user_001';
-
 export function TransactionProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactionsState] = useState<Transaction[]>([]);
   const [budgets, setBudgetsState] = useState<{ [key: string]: string }>({});
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // Load data from Firebase on app start
   useEffect(() => {
-    loadFromFirebase();
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+        loadFromFirebase(user.uid);
+      } else {
+        setUserId(null);
+        setTransactionsState([]);
+        setBudgetsState({});
+      }
+    });
+    return unsub;
   }, []);
 
-  const loadFromFirebase = async () => {
+  const loadFromFirebase = async (uid: string) => {
     try {
-      const docRef = doc(db, 'users', USER_ID);
+      const docRef = doc(db, 'users', uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -46,10 +55,11 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const saveToFirebase = async (transactions: Transaction[], budgets: { [key: string]: string }) => {
+  const saveToFirebase = async (t: Transaction[], b: { [key: string]: string }) => {
+    if (!userId) return;
     try {
-      const docRef = doc(db, 'users', USER_ID);
-      await setDoc(docRef, { transactions, budgets });
+      const docRef = doc(db, 'users', userId);
+      await setDoc(docRef, { transactions: t, budgets: b });
     } catch (error) {
       console.log('Firebase save error:', error);
     }

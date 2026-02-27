@@ -2,10 +2,8 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { app } from '../firebase.config';
-
-const auth = getAuth(app);
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase.config';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -54,7 +52,6 @@ export default function LoginScreen() {
       </LinearGradient>
 
       <View style={styles.form}>
-        {/* Toggle */}
         <View style={styles.toggle}>
           <TouchableOpacity
             style={[styles.toggleBtn, isLogin && styles.toggleActive]}
@@ -72,7 +69,6 @@ export default function LoginScreen() {
           {isLogin ? 'Welcome back! 👋' : 'Create your account 🚀'}
         </Text>
 
-        {/* Email */}
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Email</Text>
           <TextInput
@@ -86,7 +82,6 @@ export default function LoginScreen() {
           />
         </View>
 
-        {/* Password */}
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Password</Text>
           <TextInput
@@ -99,7 +94,6 @@ export default function LoginScreen() {
           />
         </View>
 
-        {/* Button */}
         <TouchableOpacity style={styles.authButtonContainer} onPress={handleAuth} disabled={loading}>
           <LinearGradient colors={['#7C3AED', '#4F46E5']} style={styles.authButton}>
             {loading ? (
