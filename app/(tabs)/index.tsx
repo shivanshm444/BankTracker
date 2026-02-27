@@ -1,7 +1,8 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, StatusBar } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTransactions } from '../../context/TransactionContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const MOCK_SMS = [
   { body: "Your A/c XX1234 debited Rs.450.00 on 27-Feb-26 at SWIGGY. Avl Bal Rs.12,500", date: "1740614400000" },
@@ -31,7 +32,7 @@ const getCategoryColor = (merchant: string) => {
   if (m.includes('netflix') || m.includes('spotify')) return '#9B59B6';
   if (m.includes('petrol') || m.includes('fuel')) return '#F39C12';
   if (m.includes('bazaar') || m.includes('mart')) return '#2ECC71';
-  return '#2E86AB';
+  return '#7C3AED';
 };
 
 const getCategoryEmoji = (merchant: string) => {
@@ -63,31 +64,66 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>BankTracker 💰</Text>
-        <Text style={styles.headerSubtitle}>Your Smart Expense Manager</Text>
-      </View>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor="#0A0A0F" />
 
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Total Spent This Month</Text>
-        <Text style={styles.balanceAmount}>₹{totalSpent.toFixed(2)}</Text>
-        {fetched && <Text style={styles.transactionCount}>{transactions.length} transactions</Text>}
-      </View>
+      {/* Header */}
+      <LinearGradient
+        colors={['#1a0533', '#0A0A0F']}
+        style={styles.header}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.greeting}>Good day 👋</Text>
+            <Text style={styles.headerTitle}>BankTracker</Text>
+          </View>
+          <TouchableOpacity style={styles.dashboardIconBtn} onPress={() => router.push('/dashboard')}>
+            <Text style={styles.dashboardIcon}>📊</Text>
+          </TouchableOpacity>
+        </View>
 
-      <TouchableOpacity style={styles.button} onPress={fetchMessages}>
-        <Text style={styles.buttonText}>📩 Fetch Bank Messages</Text>
-      </TouchableOpacity>
-<TouchableOpacity style={styles.dashboardButton} onPress={() => router.push('/dashboard')}>
-  <Text style={styles.dashboardButtonText}>📊 View Dashboard</Text>
+        {/* Balance Card */}
+        <LinearGradient
+          colors={['#7C3AED', '#4F46E5']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>Total Spent This Month</Text>
+          <Text style={styles.balanceAmount}>₹{totalSpent.toFixed(2)}</Text>
+          {fetched && (
+            <View style={styles.balanceFooter}>
+              <Text style={styles.transactionCount}>📋 {transactions.length} transactions</Text>
+              <Text style={styles.categorizedCount}>
+                ✅ {transactions.filter(t => t.category).length} categorized
+              </Text>
+            </View>
+          )}
+        </LinearGradient>
+      </LinearGradient>
+
+      {/* Buttons */}
+      <View style={styles.buttonsRow}>
+        <TouchableOpacity style={styles.fetchButton} onPress={fetchMessages}>
+          <LinearGradient colors={['#7C3AED', '#4F46E5']} style={styles.fetchButtonGradient}>
+            <Text style={styles.fetchButtonText}>📩 Fetch SMS</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.dashboardButton} onPress={() => router.push('/dashboard')}>
+          <Text style={styles.dashboardButtonText}>📊 Dashboard</Text>
+          
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.budgetButton} onPress={() => router.push('/budget')}>
+  <Text style={styles.budgetButtonText}>🎯 Budget</Text>
 </TouchableOpacity>
+      </View>
+
+      {/* Transactions */}
       <Text style={styles.sectionTitle}>Recent Transactions</Text>
 
       {transactions.length === 0 ? (
         <View style={styles.emptyBox}>
           <Text style={styles.emptyIcon}>📭</Text>
-          <Text style={styles.emptyText}>No transactions yet.</Text>
-          <Text style={styles.emptySubText}>Tap "Fetch Bank Messages" to start!</Text>
+          <Text style={styles.emptyText}>No transactions yet</Text>
+          <Text style={styles.emptySubText}>Tap "Fetch SMS" to get started</Text>
         </View>
       ) : (
         transactions.map((t, index) => (
@@ -103,7 +139,7 @@ export default function HomeScreen() {
                 index: String(index)
               }
             })}>
-            <View style={[styles.categoryDot, { backgroundColor: getCategoryColor(t.merchant) }]}>
+            <View style={[styles.categoryDot, { backgroundColor: getCategoryColor(t.merchant) + '30' }]}>
               <Text style={styles.categoryEmoji}>{getCategoryEmoji(t.merchant)}</Text>
             </View>
             <View style={styles.transactionLeft}>
@@ -111,111 +147,142 @@ export default function HomeScreen() {
               <Text style={styles.transactionDate}>
                 {new Date(parseInt(t.date)).toLocaleDateString('en-IN')}
               </Text>
-             {t.category ? (
-  <Text style={styles.categoryTag}>🏷️ {t.category}</Text>
-) : (
-  <Text style={styles.tapToAnnotate}>Tap to add category</Text>
-)}
-{t.notes ? (
-  <Text style={styles.notesPreview}>📝 {t.notes}</Text>
-) : null}
+              {t.category ? (
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryBadgeText}>🏷️ {t.category}</Text>
+                </View>
+              ) : (
+                <Text style={styles.tapToAnnotate}>Tap to categorize</Text>
+              )}
+              {t.notes ? <Text style={styles.notesPreview}>📝 {t.notes}</Text> : null}
             </View>
-            <Text style={styles.transactionAmount}>₹{t.amount.toFixed(2)}</Text>
+            <View style={styles.amountContainer}>
+              <Text style={styles.transactionAmount}>₹{t.amount.toFixed(0)}</Text>
+              <Text style={styles.arrow}>›</Text>
+            </View>
           </TouchableOpacity>
         ))
       )}
 
-      <View style={{ height: 30 }} />
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f8' },
-  header: {
-    backgroundColor: '#2E86AB',
-    padding: 30,
-    paddingTop: 60,
-    alignItems: 'center',
-  },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: 'white' },
-  headerSubtitle: { fontSize: 14, color: '#d0eaf5', marginTop: 5 },
-  balanceCard: {
-    backgroundColor: 'white',
-    margin: 20,
-    padding: 25,
-    borderRadius: 20,
-    alignItems: 'center',
-    elevation: 5,
-  },
-  balanceLabel: { fontSize: 14, color: '#888' },
-  balanceAmount: { fontSize: 40, fontWeight: 'bold', color: '#2E86AB', marginTop: 5 },
-  transactionCount: { fontSize: 12, color: '#aaa', marginTop: 5 },
-  button: {
-    backgroundColor: '#2E86AB',
-    marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    elevation: 3,
-  },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginHorizontal: 20,
-    marginTop: 25,
-    marginBottom: 10,
-    color: '#333',
-  },
-  emptyBox: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    padding: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    elevation: 2,
-  },
-  emptyIcon: { fontSize: 40, marginBottom: 10 },
-  emptyText: { color: '#555', fontSize: 16, fontWeight: 'bold' },
-  emptySubText: { color: '#aaa', fontSize: 13, marginTop: 5 },
-  transactionCard: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginBottom: 10,
-    padding: 15,
-    borderRadius: 15,
+  container: { flex: 1, backgroundColor: '#0A0A0F' },
+  header: { paddingBottom: 25 },
+  headerTop: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    elevation: 2,
+    paddingHorizontal: 20,
+    paddingTop: 55,
+    paddingBottom: 20,
   },
-  categoryDot: {
+  greeting: { fontSize: 14, color: '#888', marginBottom: 4 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: 'white' },
+  dashboardIconBtn: {
+    backgroundColor: '#1a1a2e',
     width: 45,
     height: 45,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#7C3AED30',
+  },
+  dashboardIcon: { fontSize: 22 },
+  balanceCard: {
+    marginHorizontal: 20,
+    padding: 25,
+    borderRadius: 24,
+    elevation: 10,
+  },
+  balanceLabel: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+  balanceAmount: { fontSize: 42, fontWeight: 'bold', color: 'white', marginTop: 5 },
+  balanceFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 },
+  transactionCount: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  categorizedCount: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  buttonsRow: { flexDirection: 'row', marginHorizontal: 20, marginTop: 20, gap: 12 },
+  fetchButton: { flex: 1, borderRadius: 14, overflow: 'hidden' },
+  fetchButtonGradient: { padding: 15, alignItems: 'center' },
+  fetchButtonText: { color: 'white', fontSize: 15, fontWeight: 'bold' },
+  dashboardButton: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+    padding: 15,
+    borderRadius: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#7C3AED50',
+  },
+  dashboardButtonText: { color: '#7C3AED', fontSize: 15, fontWeight: 'bold' },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginHorizontal: 20,
+    marginTop: 25,
+    marginBottom: 12,
+    color: 'white',
+  },
+  emptyBox: {
+    backgroundColor: '#1a1a2e',
+    marginHorizontal: 20,
+    padding: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#7C3AED20',
+  },
+  emptyIcon: { fontSize: 40, marginBottom: 10 },
+  emptyText: { color: '#888', fontSize: 16, fontWeight: 'bold' },
+  emptySubText: { color: '#555', fontSize: 13, marginTop: 5 },
+  transactionCard: {
+    backgroundColor: '#1a1a2e',
+    marginHorizontal: 20,
+    marginBottom: 10,
+    padding: 15,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ffffff08',
+  },
+  categoryDot: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
-  categoryEmoji: { fontSize: 20 },
+  categoryEmoji: { fontSize: 22 },
   transactionLeft: { flex: 1 },
-  merchantName: { fontSize: 15, fontWeight: 'bold', color: '#333' },
-  transactionDate: { fontSize: 12, color: '#aaa', marginTop: 2 },
-  categoryTag: { fontSize: 12, color: '#2E86AB', marginTop: 3 },
-  tapToAnnotate: { fontSize: 11, color: '#ccc', marginTop: 3, fontStyle: 'italic' },
-  transactionAmount: { fontSize: 16, fontWeight: 'bold', color: '#e74c3c' },
-  notesPreview: { fontSize: 11, color: '#888', marginTop: 2, fontStyle: 'italic' },
-  dashboardButton: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginTop: 10,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#2E86AB',
+  merchantName: { fontSize: 15, fontWeight: 'bold', color: 'white' },
+  transactionDate: { fontSize: 12, color: '#555', marginTop: 2 },
+  categoryBadge: {
+    backgroundColor: '#7C3AED20',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 4,
+    alignSelf: 'flex-start',
   },
-  dashboardButtonText: { color: '#2E86AB', fontSize: 16, fontWeight: 'bold' },
+  categoryBadgeText: { fontSize: 11, color: '#7C3AED' },
+  tapToAnnotate: { fontSize: 11, color: '#444', marginTop: 3, fontStyle: 'italic' },
+  notesPreview: { fontSize: 11, color: '#666', marginTop: 2, fontStyle: 'italic' },
+  amountContainer: { alignItems: 'flex-end' },
+  transactionAmount: { fontSize: 16, fontWeight: 'bold', color: '#FF6B6B' },
+  arrow: { fontSize: 20, color: '#333', marginTop: 2 },
+  budgetButton: {
+  flex: 1,
+  backgroundColor: '#1a1a2e',
+  padding: 15,
+  borderRadius: 14,
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: '#FF6B6B50',
+},
+budgetButtonText: { color: '#FF6B6B', fontSize: 15, fontWeight: 'bold' },
 });
-

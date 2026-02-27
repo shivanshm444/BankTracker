@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, StatusBar } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTransactions } from '../context/TransactionContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const CATEGORIES = [
   { name: 'Food', emoji: '🍕', color: '#FF6B6B' },
@@ -16,18 +17,42 @@ const CATEGORIES = [
   { name: 'Other', emoji: '💳', color: '#95A5A6' },
 ];
 
+const getAISuggestion = (merchant: string) => {
+  const m = merchant.toLowerCase();
+  if (m.includes('swiggy') || m.includes('zomato') || m.includes('cafe') || m.includes('restaurant') || m.includes('food')) return 'Food';
+  if (m.includes('amazon') || m.includes('flipkart') || m.includes('myntra')) return 'Shopping';
+  if (m.includes('petrol') || m.includes('fuel') || m.includes('reliance petrol')) return 'Fuel';
+  if (m.includes('netflix') || m.includes('spotify') || m.includes('prime')) return 'Entertainment';
+  if (m.includes('bazaar') || m.includes('mart') || m.includes('grocer')) return 'Groceries';
+  if (m.includes('hospital') || m.includes('pharmacy') || m.includes('medical')) return 'Health';
+  if (m.includes('rent') || m.includes('house')) return 'Rent';
+  if (m.includes('school') || m.includes('college') || m.includes('course')) return 'Education';
+  if (m.includes('uber') || m.includes('ola') || m.includes('flight')) return 'Travel';
+  return 'Other';
+};
+
 export default function AnnotationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { updateTransaction } = useTransactions();
 
-  const merchant = params.merchant as string || 'Unknown';
-  const amount = params.amount as string || '0';
-  const date = params.date as string || '';
-  const index = parseInt(params.index as string || '0');
+  const merchant = String(params.merchant || 'Unknown');
+  const amount = String(params.amount || '0');
+  const date = String(params.date || '');
+  const index = parseInt(String(params.index || '0'));
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [notes, setNotes] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+
+  useEffect(() => {
+    setAiLoading(true);
+    setTimeout(() => {
+      const suggestion = getAISuggestion(merchant);
+      setSelectedCategory(suggestion);
+      setAiLoading(false);
+    }, 1000);
+  }, []);
 
   const handleSave = () => {
     if (!selectedCategory) {
@@ -41,18 +66,23 @@ export default function AnnotationScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor="#0A0A0F" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient colors={['#1a0533', '#0A0A0F']} style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Details</Text>
-      </View>
+        <Text style={styles.headerTitle}>Categorize</Text>
+      </LinearGradient>
 
-      {/* Transaction Info Card */}
-      <View style={styles.transactionCard}>
+      {/* Transaction Card */}
+      <LinearGradient
+        colors={['#7C3AED', '#4F46E5']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.transactionCard}>
         <Text style={styles.merchantName}>{merchant}</Text>
         <Text style={styles.amount}>₹{parseFloat(amount).toFixed(2)}</Text>
         <Text style={styles.date}>
@@ -60,7 +90,17 @@ export default function AnnotationScreen() {
             day: 'numeric', month: 'long', year: 'numeric'
           }) : ''}
         </Text>
-      </View>
+        {aiLoading ? (
+          <View style={styles.aiLoading}>
+            <ActivityIndicator size="small" color="white" />
+            <Text style={styles.aiLoadingText}>🤖 AI is categorizing...</Text>
+          </View>
+        ) : selectedCategory ? (
+          <View style={styles.aiSuggestion}>
+            <Text style={styles.aiSuggestionText}>🤖 AI suggested: {selectedCategory}</Text>
+          </View>
+        ) : null}
+      </LinearGradient>
 
       {/* Category Picker */}
       <Text style={styles.sectionTitle}>Where did you spend?</Text>
@@ -70,7 +110,11 @@ export default function AnnotationScreen() {
             key={cat.name}
             style={[
               styles.categoryItem,
-              selectedCategory === cat.name && { borderColor: cat.color, borderWidth: 2, backgroundColor: cat.color + '15' }
+              selectedCategory === cat.name && {
+                borderColor: cat.color,
+                borderWidth: 2,
+                backgroundColor: cat.color + '20'
+              }
             ]}
             onPress={() => setSelectedCategory(cat.name)}>
             <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
@@ -82,12 +126,12 @@ export default function AnnotationScreen() {
         ))}
       </View>
 
-      {/* Notes Input */}
+      {/* Notes */}
       <Text style={styles.sectionTitle}>Add a note (optional)</Text>
       <TextInput
         style={styles.notesInput}
-        placeholder="e.g. Lunch with friends, Birthday gift..."
-        placeholderTextColor="#aaa"
+        placeholder="e.g. Lunch with friends..."
+        placeholderTextColor="#444"
         value={notes}
         onChangeText={setNotes}
         multiline
@@ -95,8 +139,10 @@ export default function AnnotationScreen() {
       />
 
       {/* Save Button */}
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>💾 Save Transaction</Text>
+      <TouchableOpacity style={styles.saveButtonContainer} onPress={handleSave}>
+        <LinearGradient colors={['#7C3AED', '#4F46E5']} style={styles.saveButton}>
+          <Text style={styles.saveButtonText}>💾 Save Transaction</Text>
+        </LinearGradient>
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
@@ -105,35 +151,44 @@ export default function AnnotationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f8' },
+  container: { flex: 1, backgroundColor: '#0A0A0F' },
   header: {
-    backgroundColor: '#2E86AB',
     padding: 20,
     paddingTop: 55,
     flexDirection: 'row',
     alignItems: 'center',
   },
   backButton: { marginRight: 15 },
-  backText: { color: 'white', fontSize: 16 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'white' },
+  backText: { color: '#7C3AED', fontSize: 16, fontWeight: 'bold' },
+  headerTitle: { fontSize: 22, fontWeight: 'bold', color: 'white' },
   transactionCard: {
-    backgroundColor: 'white',
-    margin: 20,
+    marginHorizontal: 20,
     padding: 25,
-    borderRadius: 20,
+    borderRadius: 24,
     alignItems: 'center',
-    elevation: 5,
+    elevation: 10,
+    marginBottom: 10,
   },
-  merchantName: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  amount: { fontSize: 36, fontWeight: 'bold', color: '#e74c3c', marginTop: 8 },
-  date: { fontSize: 13, color: '#aaa', marginTop: 5 },
+  merchantName: { fontSize: 24, fontWeight: 'bold', color: 'white' },
+  amount: { fontSize: 40, fontWeight: 'bold', color: 'white', marginTop: 8 },
+  date: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 5 },
+  aiLoading: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
+  aiLoadingText: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
+  aiSuggestion: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 12,
+  },
+  aiSuggestionText: { color: 'white', fontSize: 13 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginHorizontal: 20,
     marginTop: 20,
     marginBottom: 12,
-    color: '#333',
+    color: 'white',
   },
   categoryGrid: {
     flexDirection: 'row',
@@ -141,37 +196,35 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
   },
   categoryItem: {
-    backgroundColor: 'white',
+    backgroundColor: '#1a1a2e',
     width: '28%',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
-    elevation: 2,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: '#ffffff08',
     margin: 4,
   },
   categoryEmoji: { fontSize: 24 },
-  categoryName: { fontSize: 11, color: '#555', marginTop: 5, textAlign: 'center' },
+  categoryName: { fontSize: 11, color: '#888', marginTop: 5, textAlign: 'center' },
   notesInput: {
-    backgroundColor: 'white',
+    backgroundColor: '#1a1a2e',
     marginHorizontal: 20,
     padding: 15,
-    borderRadius: 12,
+    borderRadius: 14,
     fontSize: 15,
-    color: '#333',
-    elevation: 2,
+    color: 'white',
+    borderWidth: 1,
+    borderColor: '#ffffff08',
     textAlignVertical: 'top',
     minHeight: 80,
   },
-  saveButton: {
-    backgroundColor: '#2E86AB',
+  saveButtonContainer: {
     marginHorizontal: 20,
     marginTop: 25,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    elevation: 3,
+    borderRadius: 14,
+    overflow: 'hidden',
   },
+  saveButton: { padding: 16, alignItems: 'center' },
   saveButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
 });

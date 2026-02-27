@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View, ScrollView, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Dimensions, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { useTransactions } from '../context/TransactionContext';
 import { PieChart } from 'react-native-chart-kit';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -21,9 +22,9 @@ const CATEGORY_COLORS: { [key: string]: string } = {
 
 const getSpendingPersonality = (categories: { [key: string]: number }) => {
   const sorted = Object.entries(categories).sort((a, b) => b[1] - a[1]);
-  if (sorted.length === 0) return { title: 'Mystery Spender 🕵️', desc: 'We could not figure out your spending style yet!' };
+  if (sorted.length === 0) return { title: 'Mystery Spender 🕵️', desc: 'Categorize transactions to reveal your spending personality!' };
   const top = sorted[0][0];
-  if (top === 'Food') return { title: 'Foodie 🍕', desc: 'You love food! 60% of your spending goes to eating out.' };
+  if (top === 'Food') return { title: 'Foodie 🍕', desc: 'You love food! Most of your spending goes to eating out.' };
   if (top === 'Shopping') return { title: 'Shopaholic 🛒', desc: 'Retail therapy is your thing! You spend most on shopping.' };
   if (top === 'Entertainment') return { title: 'Entertainment Lover 🎬', desc: 'Movies, music and fun — that is your life!' };
   if (top === 'Fuel') return { title: 'Road Warrior ⛽', desc: 'Always on the move! Fuel is your biggest expense.' };
@@ -39,7 +40,6 @@ export default function DashboardScreen() {
   const totalSpent = transactions.reduce((sum, t) => sum + t.amount, 0);
   const annotated = transactions.filter(t => t.category).length;
 
-  // Build category wise totals
   const categoryTotals: { [key: string]: number } = {};
   transactions.forEach(t => {
     if (t.category) {
@@ -47,27 +47,27 @@ export default function DashboardScreen() {
     }
   });
 
-  // Build pie chart data
   const pieData = Object.entries(categoryTotals).map(([name, amount]) => ({
     name,
     amount,
     color: CATEGORY_COLORS[name] || '#95A5A6',
-    legendFontColor: '#333',
-    legendFontSize: 12,
+    legendFontColor: '#888',
+    legendFontSize: 11,
   }));
 
   const personality = getSpendingPersonality(categoryTotals);
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor="#0A0A0F" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient colors={['#1a0533', '#0A0A0F']} style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Dashboard 📊</Text>
-      </View>
+        <Text style={styles.headerTitle}>Dashboard</Text>
+      </LinearGradient>
 
       {/* Summary Cards */}
       <View style={styles.summaryRow}>
@@ -89,11 +89,15 @@ export default function DashboardScreen() {
       </View>
 
       {/* Spending Personality */}
-      <View style={styles.personalityCard}>
-        <Text style={styles.personalityTitle}>Your Spending Personality</Text>
-        <Text style={styles.personalityName}>{personality.title}</Text>
+      <LinearGradient
+        colors={['#7C3AED', '#4F46E5']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.personalityCard}>
+        <Text style={styles.personalityLabel}>Your Spending Personality</Text>
+        <Text style={styles.personalityTitle}>{personality.title}</Text>
         <Text style={styles.personalityDesc}>{personality.desc}</Text>
-      </View>
+      </LinearGradient>
 
       {/* Pie Chart */}
       {pieData.length > 0 ? (
@@ -104,7 +108,8 @@ export default function DashboardScreen() {
             width={screenWidth - 40}
             height={200}
             chartConfig={{
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+              backgroundColor: '#1a1a2e',
             }}
             accessor="amount"
             backgroundColor="transparent"
@@ -114,7 +119,8 @@ export default function DashboardScreen() {
         </View>
       ) : (
         <View style={styles.emptyChart}>
-          <Text style={styles.emptyChartText}>📊 Categorize transactions to see chart!</Text>
+          <Text style={styles.emptyChartEmoji}>📊</Text>
+          <Text style={styles.emptyChartText}>Categorize transactions to see chart!</Text>
         </View>
       )}
 
@@ -122,7 +128,7 @@ export default function DashboardScreen() {
       <Text style={styles.sectionTitle}>Category Breakdown</Text>
       {Object.entries(categoryTotals).length === 0 ? (
         <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>No categories yet.</Text>
+          <Text style={styles.emptyText}>No categories yet</Text>
           <Text style={styles.emptySubText}>Go back and categorize your transactions!</Text>
         </View>
       ) : (
@@ -149,92 +155,102 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f4f8' },
+  container: { flex: 1, backgroundColor: '#0A0A0F' },
   header: {
-    backgroundColor: '#2E86AB',
     padding: 20,
     paddingTop: 55,
     flexDirection: 'row',
     alignItems: 'center',
   },
   backButton: { marginRight: 15 },
-  backText: { color: 'white', fontSize: 16 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'white' },
+  backText: { color: '#7C3AED', fontSize: 16, fontWeight: 'bold' },
+  headerTitle: { fontSize: 22, fontWeight: 'bold', color: 'white' },
   summaryRow: {
     flexDirection: 'row',
-    marginHorizontal: 15,
+    marginHorizontal: 20,
     marginTop: 20,
     gap: 10,
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#1a1a2e',
     padding: 15,
-    borderRadius: 15,
+    borderRadius: 16,
     alignItems: 'center',
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#ffffff08',
   },
   summaryEmoji: { fontSize: 24 },
-  summaryAmount: { fontSize: 18, fontWeight: 'bold', color: '#333', marginTop: 5 },
-  summaryLabel: { fontSize: 11, color: '#aaa', marginTop: 3 },
+  summaryAmount: { fontSize: 16, fontWeight: 'bold', color: 'white', marginTop: 5 },
+  summaryLabel: { fontSize: 11, color: '#555', marginTop: 3 },
   personalityCard: {
-    backgroundColor: '#2E86AB',
     margin: 20,
-    padding: 20,
-    borderRadius: 20,
-    elevation: 5,
+    padding: 22,
+    borderRadius: 24,
+    elevation: 10,
   },
-  personalityTitle: { fontSize: 13, color: '#d0eaf5' },
-  personalityName: { fontSize: 24, fontWeight: 'bold', color: 'white', marginTop: 5 },
-  personalityDesc: { fontSize: 13, color: '#d0eaf5', marginTop: 8, lineHeight: 20 },
+  personalityLabel: { fontSize: 12, color: 'rgba(255,255,255,0.6)' },
+  personalityTitle: { fontSize: 26, fontWeight: 'bold', color: 'white', marginTop: 5 },
+  personalityDesc: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 8, lineHeight: 20 },
   chartCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#1a1a2e',
     marginHorizontal: 20,
     padding: 20,
     borderRadius: 20,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#ffffff08',
   },
-  chartTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
+  chartTitle: { fontSize: 16, fontWeight: 'bold', color: 'white', marginBottom: 10 },
   emptyChart: {
-    backgroundColor: 'white',
+    backgroundColor: '#1a1a2e',
     marginHorizontal: 20,
     padding: 30,
     borderRadius: 20,
     alignItems: 'center',
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#ffffff08',
   },
-  emptyChartText: { color: '#aaa', fontSize: 14 },
+  emptyChartEmoji: { fontSize: 40, marginBottom: 10 },
+  emptyChartText: { color: '#555', fontSize: 14 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginHorizontal: 20,
     marginTop: 25,
-    marginBottom: 10,
-    color: '#333',
+    marginBottom: 12,
+    color: 'white',
   },
   emptyBox: {
-    backgroundColor: 'white',
+    backgroundColor: '#1a1a2e',
     marginHorizontal: 20,
     padding: 30,
     borderRadius: 20,
     alignItems: 'center',
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#ffffff08',
   },
-  emptyText: { color: '#555', fontSize: 16, fontWeight: 'bold' },
-  emptySubText: { color: '#aaa', fontSize: 13, marginTop: 5 },
+  emptyText: { color: '#888', fontSize: 16, fontWeight: 'bold' },
+  emptySubText: { color: '#555', fontSize: 13, marginTop: 5 },
   categoryRow: {
-    backgroundColor: 'white',
+    backgroundColor: '#1a1a2e',
     marginHorizontal: 20,
     marginBottom: 10,
     padding: 15,
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#ffffff08',
   },
-  categoryDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
-  categoryName: { fontSize: 14, fontWeight: 'bold', color: '#333', width: 100 },
-  categoryBarContainer: { flex: 1, height: 8, backgroundColor: '#f0f0f0', borderRadius: 4, marginHorizontal: 10 },
-  categoryBar: { height: 8, borderRadius: 4 },
-  categoryAmount: { fontSize: 13, fontWeight: 'bold', color: '#333' },
+  categoryDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
+  categoryName: { fontSize: 14, fontWeight: 'bold', color: 'white', width: 100 },
+  categoryBarContainer: {
+    flex: 1,
+    height: 6,
+    backgroundColor: '#0A0A0F',
+    borderRadius: 3,
+    marginHorizontal: 10,
+  },
+  categoryBar: { height: 6, borderRadius: 3 },
+  categoryAmount: { fontSize: 13, fontWeight: 'bold', color: '#7C3AED' },
 });
