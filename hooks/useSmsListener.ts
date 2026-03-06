@@ -15,19 +15,30 @@ const parseBankSMS = (message: string, date: string): ParsedTransaction | null =
     const amountMatch =
         message.match(/Rs\.?\s*([\d,]+(?:\.\d{1,2})?)/i) ||
         message.match(/INR\s*([\d,]+(?:\.\d{1,2})?)/i) ||
-        message.match(/(?:debited|deducted|spent|paid)\s*(?:Rs\.?|INR)?\s*([\d,]+(?:\.\d{1,2})?)/i);
+        message.match(/₹\s*([\d,]+(?:\.\d{1,2})?)/i) ||
+        message.match(/(?:debited|deducted|spent|paid|charged|transferred|sent)\s*(?:Rs\.?|INR|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i) ||
+        message.match(/(?:amount|amt)\s*(?:Rs\.?|INR|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i);
     if (!amountMatch) return null;
 
     const amount = parseFloat(amountMatch[1].replace(/,/g, ''));
-    const isDebit = /debit|debited|spent|paid|deducted|withdrawn|purchase/i.test(message);
-    if (!isDebit) return null;
+    const isDebit = /debit|debited|spent|paid|deducted|withdrawn|purchase|transferred|sent|charged|txn|transaction|payment|dr\b/i.test(message);
+    // Also check: if it has "credited" but NOT "debited", skip it (it's income)
+    const isCredit = /credited|received|cr\b/i.test(message) && !isDebit;
+    if (!isDebit || isCredit) return null;
     if (amount <= 0 || amount > 10000000) return null;
 
     const merchantMatch =
         message.match(/at\s+([A-Za-z][A-Za-z\s.\-&']+?)(?:\.|,|\s+Avl|\s+on|\s+Ref)/i) ||
         message.match(/to\s+([A-Za-z][A-Za-z\s.\-&']+?)(?:\s+Ref|\s+on|\.|,)/i) ||
+        message.match(/VPA\s+([A-Za-z0-9@.\-]+)/i) ||
+        message.match(/thru\s+UPI:\s*(\d+)/i) ||
+        message.match(/Info:\s*([A-Za-z0-9\/\-@. ]+?)(?:\.|,|\s+Avl|\s*$)/i) ||
         message.match(/(?:at|to|for)\s+([A-Za-z0-9][A-Za-z0-9\s]+)/i);
-    const merchant = merchantMatch ? merchantMatch[1].trim().substring(0, 30) : 'Unknown';
+    let merchant = merchantMatch ? merchantMatch[1].trim().substring(0, 30) : 'Unknown';
+    // Filter out junk matches from PNB-style SMS
+    if (/^(block|fwd|download|sms|not u|pnb|one-pnb|\d{10,})/i.test(merchant)) {
+        merchant = 'UPI Transaction';
+    }
 
     return { amount, merchant, date, message, category: '', notes: '' };
 };

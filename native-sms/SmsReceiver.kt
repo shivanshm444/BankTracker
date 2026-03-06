@@ -43,28 +43,48 @@ class SmsReceiver : BroadcastReceiver() {
 
                 if (amount != null && amount > 0) {
                     savePendingTransaction(context, amount, merchant, timestamp, body)
-                    showNotification(context, amount, merchant, body)
+                    // Notification is handled by SmsMonitorService to avoid duplicates
                 }
             }
         }
     }
 
     private fun isBankTransactionSms(body: String): Boolean {
-        val hasDebit = Regex("debit|debited|spent|paid|deducted|withdrawn|purchase", RegexOption.IGNORE_CASE).containsMatchIn(body)
-        val hasCurrency = Regex("Rs\\.?|INR|₹", RegexOption.IGNORE_CASE).containsMatchIn(body)
-        return hasDebit && hasCurrency
+        val hasDebit = Regex("debit|debited|spent|paid|deducted|withdrawn|purchase|transferred|sent|charged|txn|transaction|payment", RegexOption.IGNORE_CASE).containsMatchIn(body)
+        val hasCurrency = Regex("Rs\\.?|INR|₹|amt", RegexOption.IGNORE_CASE).containsMatchIn(body)
+        val isCreditOnly = Regex("credited|received", RegexOption.IGNORE_CASE).containsMatchIn(body) && !hasDebit
+        return hasDebit && hasCurrency && !isCreditOnly
     }
 
     private fun extractAmount(body: String): Double? {
-        val pattern = Regex("(?:Rs\\.?|INR|₹)\\s*([\\d,]+(?:\\.\\d{1,2})?)", RegexOption.IGNORE_CASE)
-        val match = pattern.find(body)
-        return match?.groupValues?.get(1)?.replace(",", "")?.toDoubleOrNull()
+        val patterns = listOf(
+            Regex("(?:Rs\\.?|INR|₹)\\s*([\\d,]+(?:\\.\\d{1,2})?)", RegexOption.IGNORE_CASE),
+            Regex("(?:amt|amount)\\s*(?:Rs\\.?|INR|₹)?\\s*([\\d,]+(?:\\.\\d{1,2})?)", RegexOption.IGNORE_CASE)
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(body)
+            if (match != null) {
+                return match.groupValues[1].replace(",", "").toDoubleOrNull()
+            }
+        }
+        return null
     }
 
     private fun extractMerchant(body: String): String {
-        val pattern = Regex("(?:at|to|for)\\s+([A-Za-z0-9][A-Za-z0-9\\s.\\-&']+?)(?:\\.|,|\\s+Avl|\\s+on|\\s+Ref)", RegexOption.IGNORE_CASE)
-        val match = pattern.find(body)
-        return match?.groupValues?.get(1)?.trim()?.take(30) ?: "Unknown"
+        val patterns = listOf(
+            Regex("at\\s+([A-Za-z][A-Za-z\\s.\\-&']+?)(?:\\.|,|\\s+Avl|\\s+on|\\s+Ref)", RegexOption.IGNORE_CASE),
+            Regex("to\\s+([A-Za-z][A-Za-z\\s.\\-&']+?)(?:\\s+Ref|\\s+on|\\.|,)", RegexOption.IGNORE_CASE),
+            Regex("VPA\\s+([A-Za-z0-9@.\\-]+)", RegexOption.IGNORE_CASE),
+            Regex("Info:\\s*([A-Za-z0-9/\\-@. ]+?)(?:\\.|,|\\s+Avl)", RegexOption.IGNORE_CASE),
+            Regex("(?:at|to|for)\\s+([A-Za-z0-9][A-Za-z0-9\\s.\\-&']+?)(?:\\.|,|\\s+Avl|\\s+on|\\s+Ref)", RegexOption.IGNORE_CASE)
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(body)
+            if (match != null) {
+                return match.groupValues[1].trim().take(30)
+            }
+        }
+        return "Unknown"
     }
 
     private fun savePendingTransaction(context: Context, amount: Double, merchant: String, date: Long, message: String) {

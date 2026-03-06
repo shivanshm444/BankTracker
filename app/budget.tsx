@@ -59,6 +59,8 @@ const getPrediction = (spent: number, budget: number) => {
   const projectedTotal = dailyAvg * daysInMonth;
   const overspend = projectedTotal - budget;
   const daysUntilBudgetFinished = budget / dailyAvg;
+  const targetDailySpend = (budget - spent) / Math.max(daysRemaining, 1);
+  const reduceBy = dailyAvg - targetDailySpend;
   return {
     projectedTotal,
     overspend,
@@ -66,7 +68,9 @@ const getPrediction = (spent: number, budget: number) => {
     daysRemaining,
     daysUntilBudgetFinished,
     daysPassed,
-    daysInMonth
+    daysInMonth,
+    targetDailySpend,
+    reduceBy,
   };
 };
 
@@ -200,7 +204,7 @@ export default function BudgetScreen() {
       </View>
 
       <LinearGradient
-        colors={['#7C3AED', '#4F46E5']}
+        colors={totalSpent > (totalBudget > 0 ? totalBudget : sumOfCategoryBudgets) ? ['#3a0a0a', '#1a0a0a'] as const : ['#7C3AED', '#4F46E5'] as const}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.totalCard}>
@@ -283,33 +287,65 @@ export default function BudgetScreen() {
       {/* Predictions Section */}
       {hasPredictions && (
         <View style={styles.predictionsSection}>
-          <Text style={styles.sectionTitle}>🔮 Spending Predictions</Text>
+          <View style={styles.predictionHeaderRow}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'white' }}>🔮 AI Predictions</Text>
+            <View style={styles.smartBadge}>
+              <Text style={styles.smartBadgeText}>✨ Smart Advice</Text>
+            </View>
+          </View>
           {CATEGORIES.map(cat => {
             const spent = getCategorySpent(cat.name);
             const budget = parseFloat(budgets[cat.name] || '0');
             const prediction = getPrediction(spent, budget);
             if (!prediction) return null;
+            const isOverspending = prediction.overspend > 0;
+            const savings = Math.abs(prediction.overspend);
             return (
-              <View key={cat.name} style={styles.predictionCard}>
+              <View key={cat.name} style={[styles.predictionCard, isOverspending && styles.predictionCardDanger]}>
                 <Text style={styles.predictionEmoji}>{cat.emoji}</Text>
                 <View style={styles.predictionText}>
                   <Text style={styles.predictionTitle}>{cat.name} — End of Month</Text>
                   <Text style={styles.predictionAmount}>
                     📅 Projected: ₹{prediction.projectedTotal.toFixed(0)}
                   </Text>
-                  <Text style={[styles.predictionStatus, { color: prediction.overspend > 0 ? '#FF6B6B' : '#2ECC71' }]}>
-                    {prediction.overspend > 0
+                  <Text style={[styles.predictionStatus, { color: isOverspending ? '#FF6B6B' : '#2ECC71' }]}>
+                    {isOverspending
                       ? `⚠️ Will exceed by ₹${prediction.overspend.toFixed(0)}`
-                      : `✅ Will save ₹${Math.abs(prediction.overspend).toFixed(0)}`}
+                      : `✅ Will save ₹${savings.toFixed(0)}`}
                   </Text>
-                  <Text style={styles.predictionSub}>
-                    📊 Daily avg: ₹{prediction.dailyAvg.toFixed(0)} | {prediction.daysRemaining} days left
-                  </Text>
+
+                  {/* Stats Row */}
+                  <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>₹{prediction.projectedTotal.toFixed(0)}</Text>
+                      <Text style={styles.statLabel}>Projected</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>₹{prediction.dailyAvg.toFixed(0)}</Text>
+                      <Text style={styles.statLabel}>Daily Avg</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statValue}>{prediction.daysRemaining}</Text>
+                      <Text style={styles.statLabel}>Days Left</Text>
+                    </View>
+                  </View>
+
                   {prediction.daysUntilBudgetFinished < prediction.daysInMonth && (
                     <Text style={styles.predictionWarning}>
                       🚨 Budget runs out in {Math.max(0, prediction.daysUntilBudgetFinished - prediction.daysPassed).toFixed(0)} days!
                     </Text>
                   )}
+
+                  {/* Advice Box */}
+                  <View style={[styles.adviceBox, { borderColor: isOverspending ? '#FF6B6B30' : '#2ECC7130', backgroundColor: isOverspending ? '#FF6B6B08' : '#2ECC7108' }]}>
+                    <Text style={[styles.adviceText, { color: isOverspending ? '#FF8A8A' : '#5DEBB5' }]}>
+                      {isOverspending
+                        ? `💡 Reduce ${cat.name} spending by ₹${Math.max(0, prediction.reduceBy).toFixed(0)}/day to stay within budget. Target: ₹${Math.max(0, prediction.targetDailySpend).toFixed(0)}/day for remaining ${prediction.daysRemaining} days.`
+                        : `🎉 You'll save ₹${savings.toFixed(0)} this month! You can spend up to ₹${Math.max(0, prediction.targetDailySpend).toFixed(0)}/day and stay on track.`}
+                    </Text>
+                  </View>
                 </View>
               </View>
             );
@@ -450,8 +486,25 @@ const styles = StyleSheet.create({
   overallProgressText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 6, textAlign: 'center' },
 
   predictionsSection: { marginTop: 20 },
+  predictionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    marginTop: 25,
+    gap: 10,
+  },
+  smartBadge: {
+    backgroundColor: '#7C3AED25',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#7C3AED50',
+  },
+  smartBadgeText: { color: '#A78BFA', fontSize: 11, fontWeight: 'bold' },
   predictionCard: {
-    backgroundColor: '#1a0a0a',
+    backgroundColor: '#1a1a2e',
     marginHorizontal: 20,
     marginBottom: 10,
     padding: 15,
@@ -459,6 +512,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     borderWidth: 1,
+    borderColor: '#ffffff08',
+  },
+  predictionCardDanger: {
+    backgroundColor: '#1a0a0a',
     borderColor: '#FF6B6B30',
   },
   predictionEmoji: { fontSize: 28, marginRight: 12, marginTop: 2 },
@@ -466,8 +523,26 @@ const styles = StyleSheet.create({
   predictionTitle: { fontSize: 13, color: '#888', fontWeight: 'bold' },
   predictionAmount: { fontSize: 15, fontWeight: 'bold', color: 'white', marginTop: 4 },
   predictionStatus: { fontSize: 13, fontWeight: 'bold', marginTop: 4 },
-  predictionSub: { fontSize: 11, color: '#555', marginTop: 4 },
   predictionWarning: { fontSize: 12, color: '#FF6B6B', marginTop: 4, fontWeight: 'bold' },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0A0A0F',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 10,
+  },
+  statItem: { flex: 1, alignItems: 'center' },
+  statValue: { color: 'white', fontSize: 13, fontWeight: 'bold' },
+  statLabel: { color: '#555', fontSize: 9, marginTop: 2 },
+  statDivider: { width: 1, height: 24, backgroundColor: '#ffffff10' },
+  adviceBox: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  adviceText: { fontSize: 11, lineHeight: 16 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',

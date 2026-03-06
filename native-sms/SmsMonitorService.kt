@@ -185,16 +185,19 @@ class SmsMonitorService : Service() {
 
     private fun isBankTransactionSms(body: String): Boolean {
         val hasDebitKeyword = Regex(
-            "debit|debited|spent|paid|deducted|withdrawn|purchase",
+            "debit|debited|spent|paid|deducted|withdrawn|purchase|transferred|sent|charged|txn|transaction|payment",
             RegexOption.IGNORE_CASE
         ).containsMatchIn(body)
 
         val hasAmount = Regex(
-            "Rs\\.?|INR|₹",
+            "Rs\\.?|INR|₹|amt",
             RegexOption.IGNORE_CASE
         ).containsMatchIn(body)
 
-        return hasDebitKeyword && hasAmount
+        // Skip credit-only messages
+        val isCreditOnly = Regex("credited|received", RegexOption.IGNORE_CASE).containsMatchIn(body) && !hasDebitKeyword
+
+        return hasDebitKeyword && hasAmount && !isCreditOnly
     }
 
     private fun extractAmount(body: String): Double? {
@@ -217,6 +220,8 @@ class SmsMonitorService : Service() {
         val patterns = listOf(
             Regex("at\\s+([A-Za-z][A-Za-z\\s.\\-&']+?)(?:\\.|,|\\s+Avl|\\s+on|\\s+Ref)", RegexOption.IGNORE_CASE),
             Regex("to\\s+([A-Za-z][A-Za-z\\s.\\-&']+?)(?:\\s+Ref|\\s+on|\\.|,)", RegexOption.IGNORE_CASE),
+            Regex("VPA\\s+([A-Za-z0-9@.\\-]+)", RegexOption.IGNORE_CASE),
+            Regex("Info:\\s*([A-Za-z0-9/\\-@. ]+?)(?:\\.|,|\\s+Avl)", RegexOption.IGNORE_CASE),
             Regex("(?:at|to|for)\\s+([A-Za-z0-9][A-Za-z0-9\\s]+)", RegexOption.IGNORE_CASE)
         )
 

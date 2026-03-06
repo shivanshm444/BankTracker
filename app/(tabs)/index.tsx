@@ -19,7 +19,9 @@ const parseBankSMS = (message: string, date: string) => {
   const merchantMatch = message.match(/at\s+([A-Za-z][A-Za-z\s.\-&']+?)(?:\.|,|\s+Avl|\s+on|\s+Ref)/i) ||
     message.match(/to\s+([A-Za-z][A-Za-z\s.\-&']+?)(?:\s+Ref|\s+on|\.|,)/i) ||
     message.match(/(?:at|to|for)\s+([A-Za-z0-9][A-Za-z0-9\s]+)/i);
-  const merchant = merchantMatch ? merchantMatch[1].trim().substring(0, 30) : 'Unknown';
+  const refMatch = message.match(/[Rr]ef\.?\s*(?:[Nn]o\.?)?\s*([A-Za-z0-9]+)/);
+  const ref = refMatch ? `Txn #${refMatch[1]}` : '';
+  const merchant = merchantMatch ? merchantMatch[1].trim().substring(0, 30) : ref || 'Bank Transaction';
   return { amount, merchant, date, message, category: '', notes: '' };
 };
 
@@ -86,6 +88,32 @@ export default function HomeScreen() {
   const getSmsId = (date: string, amount: number, merchant: string) =>
     `${date}-${amount}-${merchant}`;
 
+  // Merge freshly parsed SMS with existing transactions, preserving categories/notes/splits
+  const mergeSmsWithExisting = (parsed: any[], existing: any[]): any[] => {
+    // Build a lookup from existing transactions by their unique ID
+    const existingMap = new Map<string, any>();
+    existing.forEach(t => {
+      const id = getSmsId(t.date, t.amount, t.merchant);
+      existingMap.set(id, t);
+    });
+
+    return parsed.map(t => {
+      const id = getSmsId(t.date, t.amount, t.merchant);
+      const saved = existingMap.get(id);
+      if (saved && (saved.category || saved.notes || saved.splits)) {
+        // Preserve categorization from Firebase
+        return {
+          ...t,
+          category: saved.category || t.category,
+          subCategory: saved.subCategory || t.subCategory,
+          notes: saved.notes || t.notes,
+          splits: saved.splits || t.splits,
+        };
+      }
+      return t;
+    });
+  };
+
   // Core SMS fetch — returns parsed transactions
   const fetchAndParseSms = useCallback((): Promise<any[]> => {
     return new Promise((resolve) => {
@@ -130,7 +158,8 @@ export default function HomeScreen() {
       parsed.forEach(t => {
         knownSmsIdsRef.current.add(getSmsId(t.date, t.amount, t.merchant));
       });
-      setTransactions([...parsed]);
+      const merged = mergeSmsWithExisting(parsed, transactions);
+      setTransactions([...merged]);
       setFetched(true);
       return;
     }
@@ -146,9 +175,10 @@ export default function HomeScreen() {
       knownSmsIdsRef.current.add(getSmsId(t.date, t.amount, t.merchant));
     });
 
-    // Update transaction list
+    // Update transaction list, preserving existing categories
     if (parsed.length !== transactions.length) {
-      setTransactions([...parsed]);
+      const merged = mergeSmsWithExisting(parsed, transactions);
+      setTransactions([...merged]);
     }
     setFetched(true);
 
@@ -182,7 +212,8 @@ export default function HomeScreen() {
     parsed.forEach(t => {
       knownSmsIdsRef.current.add(getSmsId(t.date, t.amount, t.merchant));
     });
-    setTransactions([...parsed]);
+    const merged = mergeSmsWithExisting(parsed, transactions);
+    setTransactions([...merged]);
     setFetched(true);
     Alert.alert('✅ Done!', `Found ${parsed.length} transactions`);
   }, [fetchAndParseSms, setTransactions]);
@@ -354,7 +385,7 @@ export default function HomeScreen() {
                   </View>
                 ) : t.category ? (
                   <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryBadgeText}>🏷️ {t.category}</Text>
+                    <Text style={styles.categoryBadgeText}>🏷️ {t.category}{t.subCategory ? ` › ${t.subCategory}` : ''}</Text>
                   </View>
                 ) : (
                   <Text style={styles.tapToAnnotate}>Tap to categorize</Text>

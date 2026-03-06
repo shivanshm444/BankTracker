@@ -3,9 +3,6 @@ import { db, auth } from '../firebase.config';
 // @ts-ignore
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const STALE_DATA_CLEANUP_KEY = 'sms_overhaul_v1_cleanup_done';
 
 export type Split = {
   amount: number;
@@ -19,6 +16,7 @@ export type Transaction = {
   date: string;
   message: string;
   category: string;
+  subCategory?: string;
   notes: string;
   splits?: Split[];
 };
@@ -26,7 +24,7 @@ export type Transaction = {
 type TransactionContextType = {
   transactions: Transaction[];
   setTransactions: (t: Transaction[]) => void;
-  updateTransaction: (index: number, category: string, notes: string, splits?: Split[]) => void;
+  updateTransaction: (index: number, category: string, notes: string, splits?: Split[], subCategory?: string) => void;
   addTransaction: (t: Transaction) => void;
   pendingTransaction: Transaction | null;
   setPendingTransaction: (t: Transaction | null) => void;
@@ -58,18 +56,6 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
 
   const loadFromFirebase = async (uid: string) => {
     try {
-      // One-time cleanup of stale data from previous version
-      const cleanupDone = await AsyncStorage.getItem(STALE_DATA_CLEANUP_KEY);
-      if (!cleanupDone) {
-        console.log('Clearing stale transactions from previous version...');
-        const docRef = doc(db, 'users', uid);
-        await setDoc(docRef, { transactions: [], budgets: {} }, { merge: false });
-        await AsyncStorage.setItem(STALE_DATA_CLEANUP_KEY, 'true');
-        setTransactionsState([]);
-        setBudgetsState({});
-        return;
-      }
-
       const docRef = doc(db, 'users', uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
@@ -102,9 +88,9 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
     saveToFirebase(transactions, b);
   };
 
-  const updateTransaction = (index: number, category: string, notes: string, splits?: Split[]) => {
+  const updateTransaction = (index: number, category: string, notes: string, splits?: Split[], subCategory?: string) => {
     const updated = [...transactions];
-    updated[index] = { ...updated[index], category, notes, splits };
+    updated[index] = { ...updated[index], category, subCategory, notes, splits };
     setTransactionsState(updated);
     saveToFirebase(updated, budgets);
   };
