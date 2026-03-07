@@ -181,13 +181,6 @@ export default function DashboardScreen() {
         <Text style={styles.personalityDesc}>{personality.desc}</Text>
       </LinearGradient>
 
-      {/* Export Report Button */}
-      <TouchableOpacity style={styles.exportBtnContainer} onPress={() => router.push('/report' as any)}>
-        <LinearGradient colors={['#4F46E5', '#3B82F6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.exportBtn}>
-          <Text style={styles.exportBtnText}>📊 Export AI Report</Text>
-          <Text style={styles.exportBtnSub}>Get AI-powered spending analysis as PDF</Text>
-        </LinearGradient>
-      </TouchableOpacity>
 
       {/* Pie Chart */}
       {pieData.length > 0 ? (
@@ -422,9 +415,4 @@ const styles = StyleSheet.create({
   merchantCount: { fontSize: 11, color: '#555', marginTop: 2 },
   merchantAmount: { fontSize: 14, fontWeight: 'bold', color: '#FF6B6B' },
 
-  // Export Report Button
-  exportBtnContainer: { marginHorizontal: 20, marginBottom: 10, borderRadius: 18, overflow: 'hidden' },
-  exportBtn: { padding: 18, borderRadius: 18, alignItems: 'center' },
-  exportBtnText: { fontSize: 16, fontWeight: 'bold', color: 'white' },
-  exportBtnSub: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
 });

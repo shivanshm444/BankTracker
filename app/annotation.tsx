@@ -32,7 +32,7 @@ Full SMS: ${smsBody || 'not available'}
 Respond with ONLY a JSON object like {"category":"Food","subCategory":"Lunch"} — no other text.`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY.trim()}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -208,6 +208,7 @@ export default function AnnotationScreen() {
   const date = isFromPending ? pendingTransaction!.date : String(params.date || '');
   const message = isFromPending ? pendingTransaction!.message : '';
   const index = isFromPending ? -1 : parseInt(String(params.index || '0'));
+  const txnId = String(params.id || '');
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSub, setSelectedSub] = useState('');
@@ -324,7 +325,7 @@ export default function AnnotationScreen() {
       addTransaction({ amount: totalAmount, merchant, date, message, category: finalCategory, subCategory: finalSubCategory, notes: finalNotes, splits: finalSplits });
       setPendingTransaction(null);
     } else {
-      updateTransaction(index, finalCategory, finalNotes, finalSplits, finalSubCategory);
+      updateTransaction(index, finalCategory, finalNotes, finalSplits, finalSubCategory, txnId);
     }
 
     const checkBudgetAlert = async (category: string, txnAmount: number) => {
